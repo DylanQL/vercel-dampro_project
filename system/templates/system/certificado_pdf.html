@@ -1,0 +1,228 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificado - {{ certificado.cert_code }}</title>
+    <style>
+        @page {
+            size: A4 landscape; /* A4 horizontal: 297mm x 210mm */
+            margin: 0;
+        }
+        
+        html, body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            width: 297mm;
+            height: 210mm;
+        }
+        
+        /* Contenedor principal del certificado con imagen de fondo */
+        .certificado-container {
+            position: relative;
+            width: 297mm;
+            height: 210mm;
+            background-image: url('{% static "system/images/rcm_certificado_background.jpg" %}');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            overflow: hidden;
+        }
+        
+        /* Área de contenido centrada */
+        .content-area {
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 75%;
+            text-align: center;
+            z-index: 10;
+        }
+        
+        /* Estilos para el contenido dinámico */
+        .otorgado-text {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: normal;
+            /* Ocultar ya que está en la imagen de fondo */
+            display: none;
+        }
+        
+        .nombre-participante {
+            font-size: 32px;
+            font-weight: bold;
+            color: #000957; /* Color azul de la marca */
+            margin: 20px 0;
+            font-style: italic;
+            font-family: 'Times New Roman', serif;
+        }
+        
+        .descripcion-curso {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #333;
+            margin: 25px 0;
+            text-align: center;
+        }
+        
+        .curso-name {
+            font-weight: bold;
+            color: #000957;
+        }
+        
+        .empresa-name {
+            font-weight: bold;
+        }
+        
+        .fecha-horas {
+            font-weight: bold;
+        }
+        
+        .texto-final {
+            font-size: 16px;
+            color: #333;
+            margin-top: 30px;
+        }
+        
+        
+        .firma-linea {
+            width: 200px;
+            border-top: 2px solid #333;
+            margin: 0 auto 10px auto;
+        }
+        
+        .firma-texto {
+            font-size: 14px;
+            color: #333;
+            line-height: 1.4;
+            font-weight: bold;
+        }
+        
+        /* Código QR - esquina inferior derecha */
+        .qr-container {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            text-align: center;
+            z-index: 10;
+        }
+        
+        .qr-code img {
+            width: 70px;
+            height: 70px;
+            margin-bottom: 3px;
+            border: 1px solid #fff;
+            border-radius: 3px;
+        }
+        
+        .qr-text {
+            font-size: 9px;
+            color: #666;
+            line-height: 1.1;
+            max-width: 70px;
+        }
+        
+        /* Código del certificado - esquina inferior izquierda */
+        .codigo-certificado {
+            position: absolute;
+            bottom: 15px;
+            left: 30px;
+            font-size: 10px;
+            color: #666;
+            z-index: 10;
+        }
+        
+        /* Ubicación - centro inferior */
+        .ubicacion {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: #666;
+            z-index: 10;
+        }
+        
+        /* Responsivo para pantalla */
+        @media screen {
+            .certificado-container {
+                margin: 20px auto;
+                box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            }
+        }
+        
+        /* Optimización para impresión */
+        @media print {
+            html, body {
+                width: 297mm;
+                height: 210mm;
+            }
+            
+            .certificado-container {
+                margin: 0;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="certificado-container">
+        
+        <!-- Área de contenido principal centrada -->
+        <div class="content-area">
+            <!-- Texto "Otorgado a" -->
+            <div class="otorgado-text">
+                Otorgado a:
+            </div>
+            
+            <!-- Nombre del participante -->
+            <div class="nombre-participante">
+                {{ certificado.usuario.last_name }} {{ certificado.usuario.second_last_name|default:"" }} 
+                {{ certificado.usuario.first_name }}
+            </div>
+            
+            <!-- Descripción del curso -->
+            <div class="descripcion-curso">
+                Por haber participado en la Capacitación de "<span class="curso-name">{{ certificado.course.name }}</span>", 
+                realizada por la consultora <span class="empresa-name">RCM Solutions S.A.C.</span>, desarrollada de manera virtual a los trabajadores de 
+                {% if certificado.empresa %}
+                la empresa <span class="empresa-name">{{ certificado.empresa.nombre }}</span>, identificada con N° de RUC <span class="empresa-name">{{ certificado.empresa.ruc }}</span>,
+                {% else %}
+                la empresa <span class="empresa-name">MEGAVANS S.A.C</span>, identificada con N° de RUC <span class="empresa-name">20607077810</span>,
+                {% endif %}
+                realizado el día 
+                <span class="fecha-horas">{{ certificado.creation_date|date:"d" }} de {{ certificado.creation_date|date:"F" }} del {{ certificado.creation_date|date:"Y" }}</span>, 
+                con un total de <span class="fecha-horas">{{ certificado.chronological_hours }}</span> horas cronológicas.
+            </div>
+            
+            <!-- Texto final -->
+            <div class="texto-final">
+                El presente certificado para fines convenientes.
+            </div>
+        </div>
+        
+        <!-- Código QR -->
+        <div class="qr-container">
+            <div class="qr-code">
+                <img src="data:image/png;base64,{{ qr_code }}" alt="Código QR">
+            </div>
+            <div class="qr-text">Escanea para verificar la autenticidad</div>
+        </div>
+        
+        <!-- Código del certificado -->
+        <div class="codigo-certificado">
+            Código: {{ certificado.cert_code }}
+        </div>
+        
+        <!-- Ubicación -->
+        <div class="ubicacion">
+            Lima, Perú
+        </div>
+    </div>
+</body>
+</html>
