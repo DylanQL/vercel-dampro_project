@@ -6,6 +6,7 @@ app_name = "system"
 
 urlpatterns = [
     path('', views.index, name='home'),
+    path('health/', views.health_check, name='health_check'),  # Health check para Vercel
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('dashboard/', views.home_logged, name='home_logged'),

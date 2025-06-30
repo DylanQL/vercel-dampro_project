@@ -21,6 +21,33 @@ import requests
 from bs4 import BeautifulSoup
 
 
+def health_check(request):
+    """Vista simple para verificar que la aplicación está funcionando"""
+    try:
+        from .models import Usuario, Course, Empresa
+        
+        # Contar registros básicos
+        users_count = Usuario.objects.count()
+        courses_count = Course.objects.count()
+        companies_count = Empresa.objects.count()
+        
+        return JsonResponse({
+            'status': 'healthy',
+            'environment': 'vercel' if os.environ.get('VERCEL') else 'local',
+            'database': 'connected',
+            'counts': {
+                'users': users_count,
+                'courses': courses_count,
+                'companies': companies_count
+            }
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'error': str(e),
+            'environment': 'vercel' if os.environ.get('VERCEL') else 'local'
+        }, status=500)
+
 def generate_unique_cert_code(length=10):
     """
     Genera un código de certificado aleatorio único.
