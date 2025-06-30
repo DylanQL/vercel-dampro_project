@@ -6,9 +6,6 @@ from .models import *
 from datetime import datetime
 from django.http import HttpResponse, JsonResponse
 from django.template.loader import render_to_string
-from weasyprint import HTML
-from weasyprint.text.fonts import FontConfiguration
-from django.conf import settings
 import os
 import qrcode
 from io import BytesIO
@@ -19,6 +16,18 @@ import requests
 from bs4 import BeautifulSoup
 import requests
 from bs4 import BeautifulSoup
+
+# Para generar PDFs - con manejo de errores
+try:
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    from reportlab.pdfgen import canvas
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
 
 
 def health_check(request):
@@ -387,60 +396,179 @@ def edit_certificado(request, pk):
 @login_required
 def certificado_pdf(request, cert_code):
     """
-    Genera un PDF con el certificado seleccionado.
+    Genera un PDF con el certificado seleccionado usando ReportLab.
+    Si ReportLab no está disponible, devuelve una página HTML.
     """
     certificado = get_object_or_404(Certificate.objects.select_related('usuario', 'course', 'empresa'), cert_code=cert_code)
     
-    # Generar URL para el QR con un dominio personalizado
-    # Puedes cambiarlo al dominio que prefieras, por ejemplo 'https://dampro.com.pe'
-    custom_domain = 'http://localhost:8000'  # Cambia esto a tu dominio real
+    # Generar URL para el QR
+    custom_domain = 'https://vercel-dampro-project.vercel.app'
     verification_url = f"{custom_domain}/certificados/{cert_code}/"
     
-    # Alternativamente, si prefieres seguir usando el dominio actual del servidor (desarrollo/producción):
-    # verification_url = request.build_absolute_uri(
-    #     reverse('system:certificado_detail', kwargs={'cert_code': cert_code})
-    # )
+    if not REPORTLAB_AVAILABLE:
+        # Si ReportLab no está disponible, mostrar página HTML
+        full_name = f"{certificado.usuario.first_name} {certificado.usuario.last_name}"
+        if certificado.usuario.second_last_name:
+            full_name += f" {certificado.usuario.second_last_name}"
+            
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Certificado {cert_code}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 40px; text-align: center; }}
+                .certificate {{ border: 3px solid #333; padding: 40px; margin: 20px; }}
+                .title {{ font-size: 24px; font-weight: bold; color: #2c3e50; margin-bottom: 30px; }}
+                .name {{ font-size: 20px; font-weight: bold; color: #2980b9; margin: 20px 0; }}
+                .info {{ font-size: 14px; margin: 10px 0; }}
+                .footer {{ margin-top: 30px; font-size: 12px; color: #666; }}
+            </style>
+        </head>
+        <body>
+            <div class="certificate">
+                <div class="title">CERTIFICADO DE CAPACITACIÓN</div>
+                <div class="info">Se certifica que:</div>
+                <div class="name">{full_name}</div>
+                <div class="info">Ha completado satisfactoriamente el curso de:</div>
+                <div class="name">{certificado.course.name}</div>
+                <div class="info">Con una duración de {certificado.chronological_hours} horas académicas</div>
+                {f'<div class="info">Representando a: <strong>{certificado.empresa.nombre}</strong></div>' if certificado.empresa else ''}
+                <div class="footer">
+                    <p>Fecha de emisión: {certificado.creation_date.strftime('%d de %B de %Y')}</p>
+                    <p>Código de verificación: <strong>{cert_code}</strong></p>
+                    <p>Verificar en: <a href="{verification_url}">{verification_url}</a></p>
+                </div>
+            </div>
+            <script>
+                // Auto-print cuando se carga la página
+                window.onload = function() {{
+                    setTimeout(function() {{
+                        window.print();
+                    }}, 1000);
+                }}
+            </script>
+        </body>
+        </html>
+        """
+        
+        return HttpResponse(html_content, content_type='text/html')
     
-    # Generar QR code
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(verification_url)
-    qr.make(fit=True)
+    # Si ReportLab está disponible, generar PDF
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="certificado_{cert_code}.pdf"'
     
-    # Crear imagen del QR
-    img = qr.make_image(fill_color="black", back_color="white")
-    
-    # Guardar imagen en memoria
-    buffer = BytesIO()
-    img.save(buffer)
-    qr_image_base64 = base64.b64encode(buffer.getvalue()).decode()
-    
-    # Renderizar el HTML
-    html_string = render_to_string('system/certificado_pdf.html', {
-        'certificado': certificado,
-        'qr_code': qr_image_base64,
-        'verification_url': verification_url,
-    })
-    
-    # Configuración de fuentes
-    font_config = FontConfiguration()
-    
-    # Crear el PDF
-    html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))
-    
-    # Definir el nombre del archivo a descargar
-    filename = f"certificado_{certificado.cert_code}.pdf"
-    
-    # Generar el PDF
-    pdf = html.write_pdf(stylesheets=[], font_config=font_config)
-    
-    # Crear la respuesta HTTP con el PDF
-    response = HttpResponse(pdf, content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    try:
+        # Crear documento PDF
+        doc = SimpleDocTemplate(response, pagesize=A4)
+        story = []
+        styles = getSampleStyleSheet()
+        
+        # Estilo personalizado para el título
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            spaceAfter=30,
+            alignment=1,  # Centro
+        )
+        
+        # Título del certificado
+        story.append(Paragraph("CERTIFICADO DE CAPACITACIÓN", title_style))
+        story.append(Spacer(1, 20))
+        
+        # Información del certificado
+        info_style = ParagraphStyle(
+            'InfoStyle',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=10,
+            alignment=1
+        )
+        
+        story.append(Paragraph("Se certifica que:", info_style))
+        story.append(Spacer(1, 10))
+        
+        # Nombre del usuario
+        name_style = ParagraphStyle(
+            'NameStyle',
+            parent=styles['Normal'],
+            fontSize=18,
+            spaceBefore=10,
+            spaceAfter=10,
+            alignment=1
+        )
+        
+        full_name = f"{certificado.usuario.first_name} {certificado.usuario.last_name}"
+        if certificado.usuario.second_last_name:
+            full_name += f" {certificado.usuario.second_last_name}"
+            
+        story.append(Paragraph(f"<b>{full_name}</b>", name_style))
+        story.append(Spacer(1, 20))
+        
+        # Detalles del curso
+        course_info = f"""
+        Ha completado satisfactoriamente el curso de:<br/>
+        <b>{certificado.course.name}</b><br/>
+        Con una duración de {certificado.chronological_hours} horas académicas<br/>
+        """
+        
+        if certificado.empresa:
+            course_info += f"Representando a: <b>{certificado.empresa.nombre}</b><br/>"
+            
+        story.append(Paragraph(course_info, info_style))
+        story.append(Spacer(1, 30))
+        
+        # Fecha y código
+        date_info = f"""
+        Fecha de emisión: {certificado.creation_date.strftime('%d de %B de %Y')}<br/>
+        Código de verificación: <b>{cert_code}</b><br/>
+        Verificar en: {verification_url}
+        """
+        
+        story.append(Paragraph(date_info, styles['Normal']))
+        
+        # Construir PDF
+        doc.build(story)
+        
+    except Exception as e:
+        # En caso de error, devolver un PDF simple
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="certificado_{cert_code}.pdf"'
+        
+        p = canvas.Canvas(response, pagesize=A4)
+        width, height = A4
+        
+        # Título
+        p.setFont("Helvetica-Bold", 24)
+        p.drawCentredText(width/2, height-100, "CERTIFICADO DE CAPACITACIÓN")
+        
+        # Contenido
+        p.setFont("Helvetica", 14)
+        y = height - 200
+        
+        full_name = f"{certificado.usuario.first_name} {certificado.usuario.last_name}"
+        if certificado.usuario.second_last_name:
+            full_name += f" {certificado.usuario.second_last_name}"
+            
+        p.drawCentredText(width/2, y, f"Se certifica que: {full_name}")
+        y -= 40
+        
+        p.drawCentredText(width/2, y, f"Ha completado el curso: {certificado.course.name}")
+        y -= 30
+        
+        p.drawCentredText(width/2, y, f"Duración: {certificado.chronological_hours} horas")
+        y -= 30
+        
+        if certificado.empresa:
+            p.drawCentredText(width/2, y, f"Empresa: {certificado.empresa.nombre}")
+            y -= 30
+            
+        p.drawCentredText(width/2, y-30, f"Código: {cert_code}")
+        p.drawCentredText(width/2, y-50, f"Fecha: {certificado.creation_date.strftime('%d/%m/%Y')}")
+        
+        p.showPage()
+        p.save()
     
     return response
 
