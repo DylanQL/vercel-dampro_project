@@ -1,32 +1,88 @@
-# Archivos y carpetas de Python
+# Python
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Archivos de entorno
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+/static/
+/staticfiles/
+/staticfiles_build/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Vercel
+.vercel
+
+# Environment variables
 .env
-*.env
+.env.local
+.env.production
+.env.staging
 
+# Node modules (if any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
 
 # Archivos de migración compilados
 */migrations/__pycache__/
 *.pyc
 
-# Archivos de configuración del sistema operativo/editor
-.DS_Store
-*.swp
-*.swo
-.idea/
-.vscode/
-
-# Archivos de logs
-*.log
-
 # Archivos generados por pip
 pip-log.txt
-
-# Archivos de dependencias que pueden regenerarse
-*.egg-info/
-dist/
-build/
