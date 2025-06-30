@@ -41,7 +41,7 @@ Documentación completa del proyecto con instrucciones de instalación y deploy.
 1. **Subir a GitHub:**
    ```bash
    git add .
-   git commit -m "Configuración para deploy en Vercel"
+   git commit -m "Corrección configuración Vercel - arreglar errores de build"
    git push origin main
    ```
 
@@ -51,9 +51,17 @@ Documentación completa del proyecto con instrucciones de instalación y deploy.
    - Configurar variables de entorno:
      - SECRET_KEY: django-insecure-d2&96j)tfe_dbif-g6@&&6tmu@7)#zqh0tj0nqnb8)#i^6n7i0
      - DEBUG: False
+     - DJANGO_SETTINGS_MODULE: dampro_system.settings
 
 3. **Deploy automático:**
-   Vercel detectará la configuración y desplegará automáticamente.
+   Vercel detectará la configuración simplificada y desplegará correctamente.
+
+## Correcciones realizadas:
+
+- ✅ Simplificado vercel.json para evitar conflictos con builds
+- ✅ Removido build_files.sh que causaba problemas con pip
+- ✅ Configuración de archivos estáticos corregida
+- ✅ Requirements.txt reorganizado con Django al inicio
 
 ## Notas importantes:
 
